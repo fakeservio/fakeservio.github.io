@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fakeservio</title>
+  <style>
+    :root{
+      --blue:#d9f0ff;
+      --accent:#5fb3ff;
+      --white:#ffffff;
+      --muted:#6b7280;
+      --card-shadow: 0 6px 18px rgba(19,60,86,0.08);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--blue),#f7fcff);color:#0b2540}
+    .app{max-width:1100px;margin:36px auto;padding:22px;background:var(--white);border-radius:12px;box-shadow:var(--card-shadow)}
+    header{display:flex;gap:18px;align-items:center}
+    header img.logo{width:86px;height:86px;object-fit:contain;border-radius:8px;border:1px solid rgba(15,76,120,0.06);padding:8px;background:linear-gradient(180deg,rgba(95,179,255,0.06),transparent)}
+    header h1{font-size:20px;margin:0}
+    p.lead{margin:8px 0 18px;color:var(--muted)}
+
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #eef6fb}
+    th{background:linear-gradient(0deg,transparent,transparent);font-weight:600;color:#08304a}
+    tr.student-row:hover{background:#fbfdff}
+
+    .grade-list{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{padding:6px 8px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid rgba(11,37,64,0.06)}
+
+    /* Color mapping requested: FB - light green; B - yellow; S - orange; I - red */
+    .chip.fb{background:#e8f8ea;color:#0b6b2a;border-color:#c8e8c9}
+    .chip.b{background:#fff8d6;color:#6b5700;border-color:#f0e2a8}
+    .chip.s{background:#fff2e0;color:#7a3b00;border-color:#ffd8b8}
+    .chip.i{background:#ffecec;color:#7a1414;border-color:#ffc9c9}
+
+    .controls{display:flex;gap:8px;align-items:center}
+    .select-grade{padding:8px;border-radius:8px;border:1px solid #d2eafc;background:#fff}
+    .btn{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:var(--white);cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(11,37,64,0.06);color:var(--accent)}
+
+    .year-grade{font-weight:700}
+    .small{font-size:13px;color:var(--muted)}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:860px){
+      header{flex-direction:row}
+      table,th,td{font-size:13px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <img src="untitled.png" alt="Fakeservio logo" class="logo" />
+      <div>
+        <h1>Fakeservio</h1>
+        <p class="lead">Site de pus note pentru invatatori tanari</p>
+      </div>
+    </header>
+
+    <section>
+
+      <table id="students-table">
+        <thead>
+          <tr>
+            <th style="width:32%">Student</th>
+            <th style="width:28%">Note</th>
+            <th style="width:20%">Adauga nota</th>
+            <th style="width:10%">Medie anuala</th>
+            <th style="width:10%">Actiuni</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button type="button" class="btn" id="export-btn">Exporteaza notele (JSON)</button>
+        <button type="button" class="btn ghost" id="import-btn">Importeaza note</button>
+        <button type="button" class="btn ghost" id="clear-btn">Clear all grades</button>
+      </div>
+
+    </section>
+
+  </div>
+
+  <script>
+    // We attach behaviour immediately; keep functions global for debugging in console
+
+    // Student list provided by the user
+    const students = [
+      "Alupului IC Robert-Mihail",
+      "Boanţă A Albert-Petrus",
+      "Bungianu S Maria-Antonia",
+      "Carabaş I Maria-Cristina",
+      "Dumitroaia A George-Vladmir",
+      "Grosu LC Rareș-Gabriel",
+      "Lupu D Sofia-Elena",
+      "Moraru A Sara-Maria",
+      "Costuleanu M Natalia",
+      "Dascălu D David-Andrei",
+      "Frunză B Cezar",
+      "Ghica CD Victor-Costin",
+      "Ilaşcu AC Ema-Alexandra",
+      "Leşanu CF Maria",
+      "Macari I Victor",
+      "Mardari G Sofia-Maria",
+      "Olǎeriu DN Vlad-Gabriel",
+      "Onofrei RC Răzvan Constantin",
+      "Placinta G Laura Gabriela",
+      "Popa I Darius-Alexandru",
+      "Siriopol DC Nikolas-Alexandru",
+      "Socol S Efrem",
+      "Varzariu I Alice loana",
+      "Stoina Ş Alexandru",
+      "Toma LP Bogdan-Alexandru",
+      "Mocanu Alina (Doamna invatatoare)"
+    ];
+
+    const STORAGE_KEY = 'fakeservio_grades_v1';
+    const gradeMap = { 'FB': 10, 'B': 8, 'S': 5, 'I': 2 };
+
+    function numericToLetter(n){
+      if (n >= 9) return 'FB';
+      if (n >= 7) return 'B';
+      if (n >= 5) return 'S';
+      return 'I';
+    }
+
+    function loadGrades(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      }catch(e){ console.error('parse fail', e); return {} }
+    }
+    function saveGrades(obj){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); }
+      catch(e){ console.error('save fail', e); alert('Failed to save: '+e.message) }
+    }
+
+    function studentId(i){ return 's_'+i }
+
+    function computeYearGrade(grades){
+      if (!grades || grades.length === 0) return {avg:null,letter:'-' };
+      const nums = grades.map(g => gradeMap[g] || 0);
+      const avg = nums.reduce((a,b)=>a+b,0)/nums.length;
+      return { avg: Math.round(avg*100)/100, letter: numericToLetter(avg) };
+    }
+
+    function gradeClass(letter){
+      switch(letter){
+        case 'FB': return 'fb';
+        case 'B': return 'b';
+        case 'S': return 's';
+        case 'I': return 'i';
+        default: return '';
+      }
+    }
+
+    function render(){
+      const tbody = document.querySelector('#students-table tbody');
+      tbody.innerHTML = '';
+      const db = loadGrades();
+
+      students.forEach((name, idx) => {
+        const id = studentId(idx);
+        const grades = db[id] || [];
+        const year = computeYearGrade(grades);
+
+        const tr = document.createElement('tr');
+        tr.className = 'student-row';
+
+        const tdName = document.createElement('td');
+        tdName.innerHTML = `<div style="font-weight:600">${escapeHtml(name)}</div><div class="small">ID: ${id}</div>`;
+        tr.appendChild(tdName);
+
+        const tdGrades = document.createElement('td');
+        const gradeWrap = document.createElement('div');
+        gradeWrap.className = 'grade-list';
+        grades.slice().reverse().forEach(g => {
+          const span = document.createElement('span');
+          span.className = 'chip ' + gradeClass(g);
+          span.textContent = g;
+          gradeWrap.appendChild(span);
+        });
+        if (grades.length === 0) gradeWrap.innerHTML = '<span class="small">Nicio nota pana acum</span>';
+        tdGrades.appendChild(gradeWrap);
+        tr.appendChild(tdGrades);
+
+        const tdAdd = document.createElement('td');
+        const select = document.createElement('select'); select.className = 'select-grade';
+        ['FB','B','S','I'].forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;select.appendChild(o)});
+        const btn = document.createElement('button'); btn.className = 'btn'; btn.type='button'; btn.textContent='Add';
+        btn.addEventListener('click', ()=>{ addGrade(id, select.value); });
+        tdAdd.appendChild(select); tdAdd.appendChild(document.createTextNode(' ')); tdAdd.appendChild(btn);
+        tr.appendChild(tdAdd);
+
+        const tdYear = document.createElement('td'); tdYear.className = 'year-grade'; tdYear.textContent = year.letter === '-' ? '-' : year.letter + ' (' + year.avg + ')'; tr.appendChild(tdYear);
+
+        const tdActions = document.createElement('td');
+        const btnClearStudent = document.createElement('button'); btnClearStudent.className='btn ghost'; btnClearStudent.type='button'; btnClearStudent.textContent='Clear';
+        btnClearStudent.addEventListener('click', ()=>{ if(confirm('Sterge note pentru '+name+'?')){ clearStudent(id) }});
+        tdActions.appendChild(btnClearStudent); tr.appendChild(tdActions);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addGrade(id, gradeLabel){ const db = loadGrades(); if (!db[id]) db[id]=[]; db[id].push(gradeLabel); if (db[id].length>50) db[id]=db[id].slice(-50); saveGrades(db); render(); }
+    function clearStudent(id){ const db = loadGrades(); if (db[id]) delete db[id]; saveGrades(db); render(); }
+
+    // FIXED clear: aggressive, guaranteed local-only
+    const clearBtn = document.getElementById('clear-btn');
+    if (clearBtn){
+      clearBtn.addEventListener('click', ()=>{
+        try{
+          if (!confirm('Sterge toate notele')) return;
+          // immediate UI feedback
+          clearBtn.disabled = true; clearBtn.textContent = 'Clearing...';
+
+          // Completely wipe localStorage for this origin - this is local-only demo
+          try{ localStorage.clear(); console.log('localStorage.clear() called'); }catch(e){ console.warn('clear() failed', e) }
+
+          // Also explicitly remove our key (safe even after clear)
+          try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+
+          // Write empty object for compatibility
+          try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({})); }catch(e){ console.warn('set empty failed', e) }
+
+          // Give the browser a moment to persist, then reload page to fully reset UI
+          setTimeout(()=>{ render(); location.reload(true); }, 60);
+        }catch(e){ console.error('clear failed', e); alert('Clear failed: '+e.message); clearBtn.disabled=false; clearBtn.textContent='Sterge toate notele' }
+      });
+    } else console.warn('clear button not found');
+
+    const exportBtn = document.getElementById('export-btn'); if (exportBtn) exportBtn.addEventListener('click', ()=>{ const dataStr = JSON.stringify(loadGrades(), null, 2); const blob=new Blob([dataStr],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='fakeservio_grades.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+
+    const importBtn = document.getElementById('import-btn'); if (importBtn) importBtn.addEventListener('click', ()=>{ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.addEventListener('change', async (ev)=>{ const f=ev.target.files[0]; if (!f) return; try{ const txt=await f.text(); const parsed=JSON.parse(txt); if (confirm('Replace local grades with imported data?')){ saveGrades(parsed); render(); } }catch(e){ alert('Failed to import: '+e.message) } }); input.click(); });
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]}) }
+
+    // initial render
+    render();
+  </script>
+</body>
+</html>
